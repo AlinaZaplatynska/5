@@ -1,0 +1,50 @@
+1.
+CREATE FUNCTION SalesLT.DatesDifference(@a DATE, @b Date)
+RETURNS VARCHAR(100)
+
+BEGIN
+    DECLARE @res VARCHAR(100)
+    SET @res = CONVERT([varchar], ABS(YEAR(@a) - YEAR(@b))) + ' years ' + CONVERT([varchar], ABS(MONTH(@a) - MONTH(@b))) + ' months ' + CONVERT([varchar], ABS(DAY(@a) - DAY(@b))) + ' days';
+    RETURN @res;
+END;
+GO
+select SalesLT.DatesDifference('1999-4-10','2009-1-1')
+
+3. 
+CREATE FUNCTION Employees.SalaryOfEmplyee(@person_id int, @d Date)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT Employees.salaries.salary 
+    FROM Employees.salaries 
+    WHERE Employees.salaries.emp_no = @person_id AND (@d >= Employees.salaries.from_date AND @d <= Employees.salaries.to_date)
+);
+GO
+
+SELECT * FROM Employees.SalaryOfEmplyee(10434,'2000-6-25')
+
+4.
+CREATE FUNCTION SalesLT.MakeSalesReportForYear(@date DATE)
+RETURNS TABLE
+AS
+RETURN 
+(
+	WITH DateSeries(a,b)
+	AS 
+    (
+		SELECT @date as a, EOMONTH(@date) as b
+        UNION ALL
+        SELECT DATEADD(mm, 1, a), EOMONTH(DATEADD(mm,1,b))
+            FROM DateSeries
+            WHERE a < DATEADD(mm, -1, DATEADD(yy, 1, @date))
+    )
+    SELECT ds.a AS DATE_START, ds.b AS DATE_END, h.CITY, SUM(soh.TotalDue) AS SUM
+        FROM DateSeries ds, SalesLT.SalesOrderHeader soh
+        INNER JOIN SalesLT.Address h ON soh.BillToAddressID = h.AddressID
+        WHERE soh.OrderDate BETWEEN ds.a AND ds.b
+        GROUP BY ds.a, ds.b, h.City
+   )
+GO
+
+SELECT * from SalesLT.MakeSalesReportForYear('2012-1-1')
